@@ -107,6 +107,11 @@ REPAIR_FILE = "repairs.csv"
 CALIB_LIST_FILE = "calib_list.csv"
 CALIB_REPORT_FILE = "calib_report.csv"
 FILTER_PLAN_FILE = "filter_plan.csv"
+NOTICE_BOARD_FILE = "notice_board.csv"
+POLL_BOARD_FILE = "poll_board.csv"
+HACCP_REVISION_FILE = "haccp_revision.csv"
+FLOW_FILE = "haccp_flowchart.csv"
+FLOW_CATEGORY_FILE = "haccp_flow_categories.csv"
 
 # 세척소독 대분류 11종
 CLEAN_CATEGORIES = [
@@ -239,6 +244,56 @@ def load_calib_reports():
     df.to_csv(CALIB_REPORT_FILE, index=False, encoding='utf-8-sig')
     return df
 
+def load_haccp_revisions():
+    if os.path.exists(HACCP_REVISION_FILE):
+        try:
+            return pd.read_csv(HACCP_REVISION_FILE, dtype=str)
+        except: pass
+    df_rev = pd.DataFrame(columns=["개정일자", "분류", "문서명", "개정번호", "개정사유"])
+    df_rev.to_csv(HACCP_REVISION_FILE, index=False, encoding='utf-8-sig')
+    return df_rev
+
+def load_flow_categories():
+    if os.path.exists(FLOW_CATEGORY_FILE):
+        try:
+            return pd.read_csv(FLOW_CATEGORY_FILE, dtype=str)
+        except: pass
+    default_cats = pd.DataFrame([
+        {"cat_id": "main", "cat_name": "메인 공정 (커피 원두)", "description": "핵심 제조 공정 흐름"},
+    ])
+    default_cats.to_csv(FLOW_CATEGORY_FILE, index=False, encoding="utf-8-sig")
+    return default_cats
+
+def load_flowchart_by_cat(cat_id: str):
+    safe_id = str(cat_id).replace("/", "_").replace("\\", "_").replace(" ", "_")
+    fpath = f"haccp_flowchart_{safe_id}.csv"
+    if os.path.exists(fpath):
+        try:
+            return pd.read_csv(fpath, dtype=str)
+        except: pass
+    if cat_id == "main":
+        default_steps = [
+            {"순서": "1",  "단계명": "원료 입고",    "설명": "생두 입고 및 수량 확인",             "유형": "공정", "CCP여부": "N", "CCP번호": "", "lane": "원재료", "merge_from": "", "merge_label": "", "merge_from_2": "", "merge_label_2": "", "merge_from_3": "", "merge_label_3": ""},
+            {"순서": "2",  "단계명": "원료 검사",    "설명": "관능검사, 이물 확인",                "유형": "검사", "CCP여부": "N", "CCP번호": "", "lane": "원재료", "merge_from": "", "merge_label": "", "merge_from_2": "", "merge_label_2": "", "merge_from_3": "", "merge_label_3": ""},
+            {"순서": "3",  "단계명": "원료 보관",    "설명": "온·습도 관리 창고 (15℃ 이하)",      "유형": "공정", "CCP여부": "N", "CCP번호": "", "lane": "원재료", "merge_from": "", "merge_label": "", "merge_from_2": "", "merge_label_2": "", "merge_from_3": "", "merge_label_3": ""},
+            {"순서": "4",  "단계명": "선 별",        "설명": "이물·불량두 제거",                   "유형": "공정", "CCP여부": "N", "CCP번호": "", "lane": "원재료", "merge_from": "", "merge_label": "", "merge_from_2": "", "merge_label_2": "", "merge_from_3": "", "merge_label_3": ""},
+            {"순서": "5",  "단계명": "계량/배합",    "설명": "블렌딩 배합비 계량",                 "유형": "공정", "CCP여부": "N", "CCP번호": "", "lane": "원재료", "merge_from": "", "merge_label": "", "merge_from_2": "", "merge_label_2": "", "merge_from_3": "", "merge_label_3": ""},
+            {"순서": "6",  "단계명": "가열(로스팅)", "설명": "로스터기 가열 처리 (열처리 CCP)",    "유형": "공정", "CCP여부": "Y", "CCP번호": "CCP-1", "lane": "원재료", "merge_from": "", "merge_label": "", "merge_from_2": "", "merge_label_2": "", "merge_from_3": "", "merge_label_3": ""},
+            {"순서": "7",  "단계명": "방 냉",        "설명": "로스팅 후 신속 냉각",                "유형": "공정", "CCP여부": "N", "CCP번호": "", "lane": "원재료", "merge_from": "", "merge_label": "", "merge_from_2": "", "merge_label_2": "", "merge_from_3": "", "merge_label_3": ""},
+            {"순서": "8",  "단계명": "내포장",       "설명": "내포장재(PE) 충전 및 밀봉",          "유형": "공정", "CCP여부": "N", "CCP번호": "", "lane": "원재료", "merge_from": "포장재", "merge_label": "내포장재(PE)", "merge_from_2": "기타", "merge_label_2": "질소", "merge_from_3": "", "merge_label_3": ""},
+            {"순서": "9",  "단계명": "X-ray이물검출","설명": "이물 검출기 통과 (이물 CCP)",        "유형": "검사", "CCP여부": "Y", "CCP번호": "CCP-2", "lane": "원재료", "merge_from": "", "merge_label": "", "merge_from_2": "", "merge_label_2": "", "merge_from_3": "", "merge_label_3": ""},
+            {"순서": "10", "단계명": "외포장",       "설명": "외포장재(박스) 포장",                "유형": "공정", "CCP여부": "N", "CCP번호": "", "lane": "원재료", "merge_from": "포장재", "merge_label": "외포장재(박스)", "merge_from_2": "", "merge_label_2": "", "merge_from_3": "", "merge_label_3": ""},
+            {"순서": "11", "단계명": "보 관",        "설명": "완제품 창고 온·습도 관리",           "유형": "공정", "CCP여부": "N", "CCP번호": "", "lane": "원재료", "merge_from": "", "merge_label": "", "merge_from_2": "", "merge_label_2": "", "merge_from_3": "", "merge_label_3": ""},
+            {"순서": "12", "단계명": "출 고",        "설명": "주문 확인 및 배송 출고",             "유형": "공정", "CCP여부": "N", "CCP번호": "", "lane": "원재료", "merge_from": "", "merge_label": "", "merge_from_2": "", "merge_label_2": "", "merge_from_3": "", "merge_label_3": ""},
+            {"순서": "1",  "단계명": "포장재 입고",  "설명": "내·외포장재 입고 및 검수",           "유형": "공정", "CCP여부": "N", "CCP번호": "", "lane": "포장재", "merge_from": "", "merge_label": "", "merge_from_2": "", "merge_label_2": "", "merge_from_3": "", "merge_label_3": ""},
+            {"순서": "2",  "단계명": "포장재 보관",  "설명": "청결구역 보관 (온·습도 관리)",       "유형": "공정", "CCP여부": "N", "CCP번호": "", "lane": "포장재", "merge_from": "", "merge_label": "", "merge_from_2": "", "merge_label_2": "", "merge_from_3": "", "merge_label_3": ""},
+            {"순서": "1",  "단계명": "질소 입고",    "설명": "식품용 질소 가스 입고·검수",         "유형": "공정", "CCP여부": "N", "CCP번호": "", "lane": "기타",   "merge_from": "", "merge_label": "", "merge_from_2": "", "merge_label_2": "", "merge_from_3": "", "merge_label_3": ""},
+        ]
+        df_f = pd.DataFrame(default_steps)
+        df_f.to_csv(fpath, index=False, encoding="utf-8-sig")
+        return df_f
+    return pd.DataFrame(columns=["순서", "단계명", "설명", "유형", "CCP여부", "CCP번호", "lane", "merge_from", "merge_label", "merge_from_2", "merge_label_2", "merge_from_3", "merge_label_3"])
+
 def toggle_task_status(file_path, idx):
     try:
         temp_df = pd.read_csv(file_path)
@@ -292,7 +347,7 @@ with st.sidebar:
     elif menu_selection == "HACCP":
         st.divider()
         st.markdown("#### ↳ HACCP 관리")
-        sub_menu = st.radio("하위 메뉴 선택:", ["HACCP 일지"])
+        sub_menu = st.radio("하위 메뉴 선택:", ["HACCP 일지", "HACCP 기준서", "개정이력", "공정 흐름도"])
 
 st.divider()
 
@@ -1957,3 +2012,324 @@ elif menu_selection == "HACCP":
                             if st.button("🗑️ 삭제", key=f"del_{i}_{f_name}", use_container_width=True):
                                 os.remove(f_path)
                                 st.rerun()
+
+    elif sub_menu == "HACCP 기준서":
+        st.markdown('<div class="section-title">📘 HACCP 기준서 및 별첨 관리</div>', unsafe_allow_html=True)
+        st.write("문서를 업로드할 때 **개정번호와 사유를 반드시 입력**해야 저장되며, 내역은 '개정이력' 메뉴에 연동됩니다.")
+
+        tab_std, tab_att = st.tabs(["HACCP 기준서", "별첨 자료"])
+
+        base_dir_haccp = "haccp_standards"
+        dir_std = os.path.join(base_dir_haccp, "standards")
+        dir_att = os.path.join(base_dir_haccp, "attachments")
+        os.makedirs(dir_std, exist_ok=True)
+        os.makedirs(dir_att, exist_ok=True)
+
+        def render_haccp_uploader(category, target_dir):
+            st.markdown(f"#### 📂 {category} 업로드")
+            with st.form(f"form_upload_{category}"):
+                up_file = st.file_uploader("새 문서 파일 선택", key=f"file_{category}")
+                c1, c2, c3 = st.columns([1, 1, 2])
+                with c1: rev_date = st.date_input("개정일")
+                with c2: rev_no = st.text_input("개정번호 (예: Rev.01)")
+                with c3: rev_reason = st.text_input("개정사유 (필수 입력)")
+                if st.form_submit_button("파일 업로드 및 개정이력 등록"):
+                    if up_file and rev_no and rev_reason:
+                        file_path = os.path.join(target_dir, up_file.name)
+                        with open(file_path, "wb") as f:
+                            f.write(up_file.getbuffer())
+                        df_rev = load_haccp_revisions()
+                        new_rev = pd.DataFrame([[str(rev_date), category, up_file.name, rev_no, rev_reason]], columns=df_rev.columns)
+                        df_rev = pd.concat([df_rev, new_rev], ignore_index=True)
+                        df_rev.to_csv(HACCP_REVISION_FILE, index=False, encoding='utf-8-sig')
+                        st.success(f"[{up_file.name}] 업로드 및 개정이력 연동 완료!")
+                        st.rerun()
+                    else:
+                        st.error("⚠️ 파일 첨부, 개정번호, 개정사유를 모두 입력해야 업로드가 가능합니다.")
+
+            st.markdown(f"##### 📄 등록된 {category} 목록")
+            files = os.listdir(target_dir)
+            if not files:
+                st.info("등록된 문서가 없습니다.")
+            else:
+                for f_name in files:
+                    f_path = os.path.join(target_dir, f_name)
+                    c_file, c_dl, c_del = st.columns([6, 1.5, 1.5])
+                    with c_file:
+                        st.markdown(f"<div style='margin-top: 8px; font-weight:500;'>▪️ {f_name}</div>", unsafe_allow_html=True)
+                    with c_dl:
+                        with open(f_path, "rb") as f_read:
+                            st.download_button("📥 다운로드", data=f_read, file_name=f_name, key=f"dl_{category}_{f_name}", use_container_width=True)
+                    with c_del:
+                        if st.button("🗑️ 삭제", key=f"del_{category}_{f_name}", use_container_width=True):
+                            os.remove(f_path)
+                            st.rerun()
+
+        with tab_std:
+            render_haccp_uploader("HACCP 기준서", dir_std)
+        with tab_att:
+            render_haccp_uploader("별첨", dir_att)
+
+    elif sub_menu == "개정이력":
+        st.markdown('<div class="section-title">🔄 HACCP 문서 개정 이력</div>', unsafe_allow_html=True)
+        st.write("HACCP 기준서 및 별첨 자료에서 업로드된 파일들의 개정 이력이 최신순으로 자동 기록됩니다.")
+
+        df_rev = load_haccp_revisions()
+
+        if df_rev.empty:
+            st.info("아직 등록된 개정 이력이 없습니다. 'HACCP 기준서' 메뉴에서 파일을 업로드해 주세요.")
+        else:
+            df_rev['개정일자'] = pd.to_datetime(df_rev['개정일자'], errors='coerce')
+            df_rev = df_rev.sort_values(by="개정일자", ascending=False).reset_index(drop=True)
+            df_rev['개정일자'] = df_rev['개정일자'].apply(lambda x: x.strftime('%Y-%m-%d') if pd.notna(x) else "")
+            st.dataframe(df_rev, use_container_width=True, hide_index=True)
+
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                df_rev.to_excel(writer, index=False, sheet_name='개정이력')
+            st.download_button(
+                label="📥 개정이력 엑셀 다운로드 (보관용)",
+                data=output.getvalue(),
+                file_name=f"HACCP_개정이력대장_{date.today().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+
+    elif sub_menu == "공정 흐름도":
+        import plotly.graph_objects as go
+
+        st.markdown('<div class="section-title">🔄 HACCP 제조공정 흐름도</div>', unsafe_allow_html=True)
+        st.write("카테고리별로 독립된 공정 흐름도를 관리합니다. 레인(원재료/포장재/기타 등)을 직접 설정하여 병렬 흐름과 합류 화살표를 표현할 수 있습니다.")
+
+        df_cats = load_flow_categories()
+
+        with st.expander("📁 공정 카테고리 관리 (추가·삭제)", expanded=False):
+            st.caption("카테고리마다 독립된 흐름도 데이터를 저장합니다. 예: 캡슐커피, 스틱커피, 생두 선별 등")
+            with st.form("form_add_cat"):
+                c1, c2, c3 = st.columns([2, 3, 1])
+                with c1:
+                    new_cat_id = st.text_input("카테고리 ID (영문, 예: capsule)")
+                with c2:
+                    new_cat_name = st.text_input("카테고리명 (예: 캡슐커피 제조공정)")
+                with c3:
+                    st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
+                    add_btn = st.form_submit_button("➕ 추가", use_container_width=True)
+                if add_btn:
+                    if new_cat_id and new_cat_name:
+                        if new_cat_id in df_cats["cat_id"].values:
+                            st.error("이미 존재하는 카테고리 ID입니다.")
+                        else:
+                            new_cat = pd.DataFrame([[new_cat_id, new_cat_name, ""]], columns=df_cats.columns)
+                            df_cats = pd.concat([df_cats, new_cat], ignore_index=True)
+                            df_cats.to_csv(FLOW_CATEGORY_FILE, index=False, encoding="utf-8-sig")
+                            st.success(f"카테고리 [{new_cat_name}] 추가 완료!")
+                            st.rerun()
+                    else:
+                        st.error("ID와 카테고리명을 모두 입력하세요.")
+
+            st.markdown("**등록된 카테고리 목록**")
+            for _, cat_row in df_cats.iterrows():
+                cc1, cc2 = st.columns([6, 1])
+                with cc1:
+                    st.markdown(f"▪️ **{cat_row['cat_name']}** &nbsp; <span style='color:#999;font-size:0.85rem'>ID: {cat_row['cat_id']}</span>", unsafe_allow_html=True)
+                with cc2:
+                    if cat_row["cat_id"] != "main":
+                        if st.button("🗑️ 삭제", key=f"del_cat_{cat_row['cat_id']}"):
+                            df_cats = df_cats[df_cats["cat_id"] != cat_row["cat_id"]]
+                            df_cats.to_csv(FLOW_CATEGORY_FILE, index=False, encoding="utf-8-sig")
+                            st.rerun()
+                    else:
+                        st.caption("기본(삭제불가)")
+
+        st.divider()
+
+        if df_cats.empty:
+            st.warning("카테고리가 없습니다. 위에서 먼저 추가해 주세요.")
+        else:
+            cat_tabs = st.tabs([row["cat_name"] for _, row in df_cats.iterrows()])
+
+            for tab_i, (_, cat_row) in enumerate(df_cats.iterrows()):
+                with cat_tabs[tab_i]:
+                    cat_id   = cat_row["cat_id"]
+                    cat_name = cat_row["cat_name"]
+                    safe_id  = str(cat_id).replace("/", "_").replace("\\", "_").replace(" ", "_")
+                    fpath    = f"haccp_flowchart_{safe_id}.csv"
+
+                    df_flow = load_flowchart_by_cat(cat_id)
+
+                    with st.expander("⚙️ 공정 단계 추가 / 수정 (표에서 직접 편집)", expanded=False):
+                        st.markdown("""
+**컬럼 안내**
+- **lane**: 이 단계가 속한 흐름(레인) 이름. 예) `원재료`, `포장재`, `기타`
+- **merge_from**: 이 단계로 합류하는 다른 레인 이름. 예) `포장재`
+- **merge_label**: 합류 화살표 위에 표시할 라벨. 예) `내포장재(PE)`
+                        """)
+                        for col_need in ["lane", "merge_from", "merge_label", "merge_from_2", "merge_label_2", "merge_from_3", "merge_label_3"]:
+                            if col_need not in df_flow.columns:
+                                df_flow[col_need] = ""
+
+                        cfg_flow = {
+                            "유형":          st.column_config.SelectboxColumn("유형", options=["공정", "검사", "판단", "보관", "출하"], width="small"),
+                            "CCP여부":       st.column_config.SelectboxColumn("CCP 여부", options=["N", "Y"], width="small"),
+                            "순서":          st.column_config.TextColumn("순서", width="small"),
+                            "CCP번호":       st.column_config.TextColumn("CCP 번호", width="small"),
+                            "lane":          st.column_config.TextColumn("레인(lane)", width="medium"),
+                            "merge_from":    st.column_config.TextColumn("합류 레인1", width="medium"),
+                            "merge_label":   st.column_config.TextColumn("합류 라벨1", width="medium"),
+                            "merge_from_2":  st.column_config.TextColumn("합류 레인2", width="medium"),
+                            "merge_label_2": st.column_config.TextColumn("합류 라벨2", width="medium"),
+                            "merge_from_3":  st.column_config.TextColumn("합류 레인3", width="medium"),
+                            "merge_label_3": st.column_config.TextColumn("합류 라벨3", width="medium"),
+                        }
+                        edited_flow = st.data_editor(
+                            df_flow, num_rows="dynamic", use_container_width=True,
+                            column_config=cfg_flow, hide_index=True,
+                            key=f"editor_{cat_id}"
+                        )
+                        if st.button("💾 공정 단계 저장", key=f"save_flow_{cat_id}"):
+                            edited_flow.to_csv(fpath, index=False, encoding="utf-8-sig")
+                            st.success("공정 흐름도 데이터가 저장되었습니다.")
+                            st.rerun()
+
+                    st.markdown(f"### 📊 {cat_name} 공정 흐름도")
+
+                    df_flow = load_flowchart_by_cat(cat_id)
+                    for col_need in ["lane", "merge_from", "merge_label", "merge_from_2", "merge_label_2", "merge_from_3", "merge_label_3"]:
+                        if col_need not in df_flow.columns:
+                            df_flow[col_need] = ""
+                    df_flow = df_flow.fillna("")
+                    df_flow["순서"] = pd.to_numeric(df_flow["순서"], errors="coerce")
+                    df_flow = df_flow.dropna(subset=["순서"]).sort_values(["lane", "순서"]).reset_index(drop=True)
+
+                    TYPE_COLOR = {"공정": "#4A90D9", "검사": "#27AE60", "판단": "#F39C12", "보관": "#8E44AD", "출하": "#2C3E50"}
+                    CCP_COLOR   = "#D11031"
+                    ARROW_COLOR = "#555555"
+                    MERGE_COLOR = "#D11031"
+                    LANE_BG     = ["rgba(74,144,217,0.07)", "rgba(39,174,96,0.07)", "rgba(243,156,18,0.07)", "rgba(142,68,173,0.07)", "rgba(44,62,80,0.07)"]
+
+                    all_lanes = []
+                    for _, r in df_flow.iterrows():
+                        l = str(r.get("lane", "")).strip()
+                        if l and l not in all_lanes:
+                            all_lanes.append(l)
+                    if not all_lanes:
+                        all_lanes = ["공정"]
+
+                    n_lanes  = len(all_lanes)
+                    lane_w   = 1.0 / (n_lanes + 1)
+                    lane_xs  = {ln: (li + 1) * lane_w for li, ln in enumerate(all_lanes)}
+
+                    BOX_W  = min(0.26, lane_w * 0.82)
+                    BOX_H  = 0.050
+                    GAP    = 0.016
+                    STEP_H = BOX_H + GAP
+
+                    main_lane = all_lanes[0]
+                    main_rows = df_flow[df_flow["lane"] == main_lane]
+                    n_main    = max(len(main_rows), 1)
+                    fig_h = max(700, n_main * 78 + 150)
+
+                    fig         = go.Figure()
+                    shapes      = []
+                    annotations = []
+
+                    LANE_HDR_CLR = ["#4A90D9", "#27AE60", "#F39C12", "#8E44AD", "#2C3E50"]
+                    for li, ln in enumerate(all_lanes):
+                        cx = lane_xs[ln]
+                        shapes.append(dict(type="rect", x0=cx - lane_w / 2, x1=cx + lane_w / 2, y0=-0.05, y1=1.06, fillcolor=LANE_BG[li % len(LANE_BG)], line=dict(width=0), layer="below"))
+                        annotations.append(dict(x=cx, y=1.045, text=f"<b>{ln}</b>", showarrow=False, font=dict(size=13, color="#333", family="Noto Sans KR"), xanchor="center", yanchor="middle", bgcolor="white", bordercolor="#bbb", borderwidth=1, borderpad=5))
+
+                    step_ymid  = {}
+                    lane_steps = {ln: df_flow[df_flow["lane"] == ln].reset_index(drop=True) for ln in all_lanes}
+
+                    for ln in all_lanes:
+                        steps = lane_steps[ln]
+                        cx    = lane_xs[ln]
+                        prev_y_bot = None
+                        for si, (_, row) in enumerate(steps.iterrows()):
+                            y_top = 1.0 - si * STEP_H - 0.06
+                            y_bot = y_top - BOX_H
+                            y_mid = (y_top + y_bot) / 2
+                            step_ymid[(ln, str(int(float(row["순서"]))))] = y_mid
+
+                            is_ccp  = str(row.get("CCP여부", "N")).upper() == "Y"
+                            유형     = str(row.get("유형", "공정"))
+                            단계명   = str(row.get("단계명", ""))
+                            설명     = str(row.get("설명", ""))
+                            ccp_번호 = str(row.get("CCP번호", ""))
+                            fill_c   = CCP_COLOR if is_ccp else TYPE_COLOR.get(유형, "#4A90D9")
+                            border_c = "#A80D27" if is_ccp else "#2c2c2c"
+
+                            if 유형 == "판단":
+                                dx, dy = BOX_W / 2, BOX_H / 2
+                                fig.add_trace(go.Scatter(x=[cx, cx + dx, cx, cx - dx, cx], y=[y_top, y_mid, y_bot, y_mid, y_top], fill="toself", fillcolor=fill_c, line=dict(color=border_c, width=2), mode="lines", hoverinfo="skip", showlegend=False))
+                            else:
+                                shapes.append(dict(type="rect", x0=cx - BOX_W / 2, x1=cx + BOX_W / 2, y0=y_bot, y1=y_top, fillcolor=fill_c, line=dict(color=border_c, width=2), layer="above"))
+
+                            label = f"<b>{int(float(row['순서']))}. {단계명}</b>"
+                            if is_ccp:
+                                label += f" ⚠️{ccp_번호}"
+                            annotations.append(dict(x=cx, y=y_mid + 0.010, text=label, showarrow=False, font=dict(size=12, color="white", family="Noto Sans KR"), xanchor="center", yanchor="middle"))
+                            annotations.append(dict(x=cx, y=y_mid - 0.013, text=f"<span style='font-size:9px'>{설명}</span>", showarrow=False, font=dict(size=9, color="rgba(255,255,255,0.88)"), xanchor="center", yanchor="middle"))
+
+                            if prev_y_bot is not None:
+                                shapes.append(dict(type="line", x0=cx, x1=cx, y0=prev_y_bot, y1=y_top, line=dict(color=ARROW_COLOR, width=2)))
+                                annotations.append(dict(x=cx, y=y_top, ax=cx, ay=prev_y_bot, xref="x", yref="y", axref="x", ayref="y", showarrow=True, arrowhead=2, arrowsize=1.2, arrowcolor=ARROW_COLOR, arrowwidth=2))
+                            prev_y_bot = y_bot
+
+                    MERGE_PAIRS = [("merge_from", "merge_label"), ("merge_from_2", "merge_label_2"), ("merge_from_3", "merge_label_3")]
+                    for _, row in df_flow.iterrows():
+                        target_lane = str(row.get("lane", "")).strip()
+                        순서str      = str(int(float(row["순서"])))
+                        target_y    = step_ymid.get((target_lane, 순서str), None)
+                        if target_y is None:
+                            continue
+                        to_cx = lane_xs.get(target_lane, 0.5)
+                        for mf_col, ml_col in MERGE_PAIRS:
+                            merge_from = str(row.get(mf_col, "")).strip()
+                            merge_lbl  = str(row.get(ml_col, "")).strip()
+                            if not merge_from or merge_from not in lane_xs:
+                                continue
+                            from_cx   = lane_xs[merge_from]
+                            sub_steps = lane_steps.get(merge_from, pd.DataFrame())
+                            if sub_steps.empty:
+                                from_y = target_y
+                            else:
+                                last_sub_순서 = str(int(float(sub_steps.iloc[-1]["순서"])))
+                                from_y = step_ymid.get((merge_from, last_sub_순서), target_y)
+                            from_x_start = from_cx + BOX_W / 2 if from_cx < to_cx else from_cx - BOX_W / 2
+                            to_x_end     = to_cx - BOX_W / 2  if from_cx < to_cx else to_cx + BOX_W / 2
+                            if abs(from_y - target_y) > 0.001:
+                                shapes.append(dict(type="line", x0=from_cx, x1=from_cx, y0=from_y - BOX_H / 2, y1=target_y, line=dict(color=MERGE_COLOR, width=2, dash="dot")))
+                            shapes.append(dict(type="line", x0=from_cx, x1=to_x_end, y0=target_y, y1=target_y, line=dict(color=MERGE_COLOR, width=2, dash="dot")))
+                            annotations.append(dict(x=to_x_end, y=target_y, ax=from_cx, ay=target_y, xref="x", yref="y", axref="x", ayref="y", showarrow=True, arrowhead=2, arrowsize=1.1, arrowcolor=MERGE_COLOR, arrowwidth=2))
+                            if merge_lbl:
+                                mid_x = (from_cx + to_x_end) / 2
+                                annotations.append(dict(x=mid_x, y=target_y + 0.014, text=f"<span style='font-size:9px;color:{MERGE_COLOR}'>{merge_lbl}</span>", showarrow=False, font=dict(size=9, color=MERGE_COLOR), xanchor="center"))
+
+                    fig.update_layout(
+                        shapes=shapes, annotations=annotations,
+                        xaxis=dict(visible=False, range=[-0.02, 1.02]),
+                        yaxis=dict(visible=False, range=[-0.08, 1.12]),
+                        margin=dict(l=10, r=10, t=55, b=10),
+                        height=fig_h,
+                        paper_bgcolor="#F8F9FA", plot_bgcolor="#F8F9FA",
+                        title=dict(text=f"Hollys Roasting Center — {cat_name}", x=0.5, xanchor="center", font=dict(size=15, color="#212529"))
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
+                    st.markdown("""
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
+                        <span style="background:#4A90D9;color:white;padding:3px 10px;border-radius:6px;font-size:0.82rem;">■ 공정</span>
+                        <span style="background:#27AE60;color:white;padding:3px 10px;border-radius:6px;font-size:0.82rem;">■ 검사</span>
+                        <span style="background:#F39C12;color:white;padding:3px 10px;border-radius:6px;font-size:0.82rem;">■ 판단</span>
+                        <span style="background:#8E44AD;color:white;padding:3px 10px;border-radius:6px;font-size:0.82rem;">■ 보관</span>
+                        <span style="background:#2C3E50;color:white;padding:3px 10px;border-radius:6px;font-size:0.82rem;">■ 출하</span>
+                        <span style="background:#D11031;color:white;padding:3px 10px;border-radius:6px;font-size:0.82rem;">⚠️ CCP</span>
+                        <span style="border:2px dashed #D11031;color:#D11031;padding:3px 10px;border-radius:6px;font-size:0.82rem;">‥▶ 합류 화살표</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    df_ccp = df_flow[df_flow["CCP여부"].str.upper() == "Y"]
+                    if not df_ccp.empty:
+                        st.markdown("### ⚠️ CCP 지점 요약")
+                        st.dataframe(df_ccp[["순서", "CCP번호", "단계명", "설명", "lane"]].reset_index(drop=True), use_container_width=True, hide_index=True)
