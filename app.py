@@ -31,6 +31,58 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
+# ✨ 1.5 인트로 스플래시 화면 (HELLO, HOLLYS)
+# ==========================================
+if 'welcomed' not in st.session_state:
+    st.session_state.welcomed = True
+    st.markdown("""
+        <style>
+        .splash-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #D11031;
+            z-index: 9999999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            animation: fadeOut 0.8s ease-in-out 3s forwards;
+        }
+        .splash-container h1 {
+            color: white;
+            font-size: 5rem;
+            letter-spacing: 5px;
+            font-weight: 900;
+            margin: 0;
+            animation: fadeInOut 3s ease-in-out forwards;
+        }
+        .splash-container p {
+            color: #FFD1D1; 
+            font-size: 1.5rem; 
+            margin-top: 15px;
+            animation: fadeInOut 3s ease-in-out forwards;
+        }
+        @keyframes fadeOut {
+            0% { opacity: 1; visibility: visible; }
+            100% { opacity: 0; visibility: hidden; display: none; }
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(20px); }
+            20% { opacity: 1; transform: translateY(0); }
+            80% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+        </style>
+        <div class="splash-container">
+            <h1>HELLO, HOLLYS</h1>
+            <p>Digital QMS Premium System</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+# ==========================================
 # 2. 로고 및 타이틀
 # ==========================================
 c_logo, c_title = st.columns([1, 5])
@@ -103,7 +155,6 @@ def load_filter_plan():
     if os.path.exists(FILTER_PLAN_FILE):
         try:
             df = pd.read_csv(FILTER_PLAN_FILE)
-            # 과거 데이터 호환성 패치
             if '설비명_위치' in df.columns:
                 df.rename(columns={'설비명_위치': '설치장소', '필터종류': '필터명', '최근점검일': '점검일자', '차기점검일': '차기점검일자'}, inplace=True)
                 if '내용' not in df.columns: df['내용'] = '교체'
@@ -362,6 +413,7 @@ if menu_selection == "대시보드 (메인)":
                 
                 days_left = (f_date - today_date).days
                 
+                # 30일 이내로 다가오면 대시보드에 표시
                 if days_left <= 30:
                     f_status = "만료" if days_left < 0 else f"D-{days_left}"
                     f_alert = "[필터 만료]" if days_left < 0 else "[필터 점검]"
@@ -1446,8 +1498,292 @@ elif menu_selection == "제품 관리":
             st.rerun()
             
     elif sub_menu == "상세 규격서 마스터":
-        st.markdown('<div class="section-title">📄 상세 규격서 마스터 정보</div>', unsafe_allow_html=True)
-        st.info("상세 규격서 및 원부재료 배합비 파일 관리 기능은 업데이트 준비 중입니다.")
+        def export_full_excel(sel_code, sel_name, df_b, df_r, df_h, img_path):
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                workbook = writer.book
+                worksheet = workbook.add_worksheet('상세규격서')
+                
+                worksheet.set_paper(9) # A4 크기
+                worksheet.fit_to_pages(1, 0)
+                worksheet.center_horizontally() 
+                worksheet.set_margins(left=0.5, right=0.5, top=0.8, bottom=0.8) 
+                
+                title_format = workbook.add_format({'bold': True, 'font_size': 18, 'valign': 'vcenter', 'align': 'center', 'bottom': 2})
+                section_title_format = workbook.add_format({'bold': True, 'font_size': 12, 'valign': 'vcenter', 'align': 'left', 'bg_color': '#F2F2F2', 'border': 1})
+                header_format = workbook.add_format({'bg_color': '#DDEBF7', 'border': 1, 'align': 'center', 'valign': 'vcenter', 'bold': True})
+                normal_format = workbook.add_format({'border': 1, 'align': 'left', 'valign': 'vcenter', 'text_wrap': True})
+                center_format = workbook.add_format({'border': 1, 'align': 'center', 'valign': 'vcenter', 'text_wrap': True})
+                photo_box_format = workbook.add_format({'border': 1, 'align': 'center', 'valign': 'vcenter'})
+                
+                worksheet.set_column('A:A', 20)
+                worksheet.set_column('B:B', 25)
+                worksheet.set_column('C:C', 25)
+                worksheet.set_column('D:D', 18)
+                worksheet.set_column('E:E', 18)
+                
+                worksheet.merge_range('A1:E1', f"제품 규격서 ({sel_name})", title_format)
+                worksheet.set_row(0, 40)
+                
+                current_row = 2
+                worksheet.merge_range(current_row, 0, current_row, 4, "■ 1. 기본 정보", section_title_format)
+                worksheet.set_row(current_row, 25)
+                current_row += 1
+                
+                start_basic_row = current_row
+                for r_idx, row in df_b.iterrows():
+                    worksheet.set_row(current_row, 25)
+                    worksheet.write(current_row, 0, str(row['항목(고정)']), header_format)
+                    worksheet.merge_range(current_row, 1, current_row, 2, str(row['내용']) if pd.notna(row['내용']) else "", normal_format)
+                    current_row += 1
+                    
+                end_basic_row = current_row - 1
+                
+                worksheet.merge_range(start_basic_row, 3, start_basic_row, 4, "제품 사진", header_format)
+                worksheet.merge_range(start_basic_row + 1, 3, end_basic_row, 4, "", photo_box_format)
+                
+                if img_path and os.path.exists(img_path):
+                    try: worksheet.insert_image(start_basic_row + 1, 3, img_path, {'x_offset': 5, 'y_offset': 5, 'object_position': 1, 'x_scale': 0.16, 'y_scale': 0.16})
+                    except: pass
+                
+                current_row += 1
+                
+                worksheet.merge_range(current_row, 0, current_row, 4, "■ 2. 배합비 (BOM)", section_title_format)
+                worksheet.set_row(current_row, 25)
+                current_row += 1
+                
+                for c_idx, col in enumerate(df_r.columns): worksheet.write(current_row, c_idx, col, header_format)
+                current_row += 1
+                    
+                for r_idx, row in df_r.iterrows():
+                    worksheet.set_row(current_row, 22)
+                    for c_idx, val in enumerate(row): worksheet.write(current_row, c_idx, str(val) if pd.notna(val) else "", center_format if c_idx >= 3 else normal_format)
+                    current_row += 1
+                    
+                current_row += 1
+                        
+                worksheet.merge_range(current_row, 0, current_row, 4, "■ 3. 완제품 규격", section_title_format)
+                worksheet.set_row(current_row, 25)
+                current_row += 1
+                
+                for c_idx, col in enumerate(df_h.columns): 
+                    if c_idx < 3: worksheet.write(current_row, c_idx, col, header_format)
+                    else: worksheet.merge_range(current_row, 3, current_row, 4, col, header_format)
+                current_row += 1
+                        
+                for r_idx, row in df_h.iterrows():
+                    worksheet.set_row(current_row, 22)
+                    for c_idx, val in enumerate(row): 
+                        if c_idx < 3: worksheet.write(current_row, c_idx, str(val) if pd.notna(val) else "", center_format)
+                        else: worksheet.merge_range(current_row, 3, current_row, 4, str(val) if pd.notna(val) else "", center_format)
+                    current_row += 1
+                
+            return output.getvalue()
+
+        # ---------------------------------------------------------
+        # 뷰 1: 제품 목록 (디렉토리)
+        # ---------------------------------------------------------
+        if st.session_state.selected_pcode is None:
+            st.subheader("📦 상세 규격 관리 디렉토리")
+            
+            c_search, c_empty = st.columns([1, 2])
+            with c_search:
+                search_t7 = st.text_input("🔍 제품 검색 (이름 또는 코드)", placeholder="빠른 규격 검색...")
+                
+            st.write("상세 규격을 열람/수정할 제품의 **'상세 규격 열기 📝'** 버튼을 클릭하세요.")
+            
+            if df_specs.empty:
+                st.info("등록된 제품이 없습니다. 간편 판정 규격에서 제품을 먼저 등록해 주세요.")
+            else:
+                view_df = df_specs[df_specs['제품명'].str.contains(search_t7, case=False, na=False) | df_specs['제품코드'].str.contains(search_t7, case=False, na=False)] if search_t7 else df_specs
+                if view_df.empty: st.warning("일치하는 제품이 없습니다.")
+                else:
+                    cols = st.columns(4)
+                    for idx, row in view_df.reset_index().iterrows():
+                        p_code, p_name, p_type = row['제품코드'], row['제품명'], row['유형']
+                        with cols[idx % 4]:
+                            with st.container(border=True):
+                                st.markdown(f"<h5 style='color: #D11031; margin-bottom: 0;'>{p_code}</h5>", unsafe_allow_html=True)
+                                st.markdown(f"**{p_name}**")
+                                st.caption(f"분류: {p_type}")
+                                if st.button("상세 규격 열기 📝", key=f"btn_{p_code}", use_container_width=True):
+                                    st.session_state.selected_pcode = p_code
+                                    st.session_state.selected_pname = p_name
+                                    st.session_state.is_edit_mode = False 
+                                    st.rerun()
+
+        # ---------------------------------------------------------
+        # 데이터 로드 공통 로직
+        # ---------------------------------------------------------
+        else:
+            sel_code = st.session_state.selected_pcode
+            sel_name = st.session_state.selected_pname
+            safe_code = str(sel_code).replace("/", "_").replace("\\", "_")
+            
+            B_FILE = f"spec_basic_{safe_code}.csv"
+            R_FILE = f"spec_recipe_{safe_code}.csv"
+            H_FILE = f"spec_hazard_{safe_code}.csv"
+            IMG_FILE = f"spec_photo_{safe_code}.png"
+
+            if os.path.exists(B_FILE): 
+                df_basic = pd.read_csv(B_FILE, dtype=str)
+                if "항목1(고정)" in df_basic.columns: df_basic = None 
+            else: df_basic = None
+
+            if df_basic is None:
+                df_basic = pd.DataFrame([
+                    ["제품명", sel_name], ["제품유형", ""], ["품목제조보고 연월일", ""],
+                    ["포장단위", ""], ["작성 연월일", ""], ["포장방법", ""],
+                    ["보관/유통 주의사항", ""], ["포장재질", ""], ["소비기한", ""],
+                    ["표시사항", ""], ["제품용도", ""], ["섭취방법", ""],
+                    ["작성자", ""], ["기타", ""]
+                ], columns=["항목(고정)", "내용"])
+            
+            if os.path.exists(R_FILE): df_recipe = pd.read_csv(R_FILE, dtype=str)
+            else:
+                df_recipe = pd.DataFrame(columns=["1차원료", "2차원료", "3차원료", "배합비율(%)", "비고"])
+                df_recipe.loc[0] = ["", "", "", "", ""]
+                
+            if os.path.exists(H_FILE): df_hazard = pd.read_csv(H_FILE, dtype=str)
+            else:
+                df_hazard = pd.DataFrame([
+                    ["물리학적 위해요소", "금속이물", "불검출", "불검출"],
+                    ["화학적 위해요소", "납", "2.0 이하", "2.0 이하"],
+                    ["미생물학적 위해요소", "세균수", "-", "-"],
+                    ["성상", "외관/풍미", "고유의 색택과 향미", "고유의 색택과 향미"]
+                ], columns=["위해요소 구분", "검사항목", "법적규격", "당사규격"])
+
+            # ---------------------------------------------------------
+            # 뷰 2-A: [상세페이지] 뷰어 모드 
+            # ---------------------------------------------------------
+            if not st.session_state.is_edit_mode:
+                st.markdown(f"<h2>[{sel_code}] {sel_name} 규격서 상세페이지</h2>", unsafe_allow_html=True)
+                
+                col_nav1, col_nav2, col_nav3 = st.columns([1, 1, 1.5])
+                with col_nav1:
+                    if st.button("⬅️ 제품 목록으로", use_container_width=True):
+                        st.session_state.selected_pcode = None
+                        st.rerun()
+                with col_nav2:
+                    if st.button("✏️ 정보 수정하기", use_container_width=True):
+                        st.session_state.is_edit_mode = True
+                        st.rerun()
+                with col_nav3:
+                    excel_data = export_full_excel(sel_code, sel_name, df_basic, df_recipe, df_hazard, IMG_FILE)
+                    st.download_button(
+                        label=f"🖨️ 인쇄용 엑셀 다운로드 (A4 최적화)", 
+                        data=excel_data, 
+                        file_name=f"Hollys_Spec_{safe_code}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
+                        use_container_width=True
+                    )
+                    
+                st.info("💡 **[🖨️ 인쇄용 엑셀 다운로드]** 버튼을 눌러 파일을 받으세요. 엑셀에서 열고 `Ctrl + P`를 누르시면 보고서 양식에 딱 맞게 출력됩니다.")
+
+                st.divider()
+
+                c_left, c_right = st.columns([2.5, 1])
+                with c_left:
+                    st.markdown('<div class="section-title">■ 1. 기본 정보</div>', unsafe_allow_html=True)
+                    st.table(df_basic)
+                with c_right:
+                    st.markdown('<div class="section-title">■ 제품 사진</div>', unsafe_allow_html=True)
+                    if os.path.exists(IMG_FILE): st.image(IMG_FILE, use_container_width=True)
+                    else: st.caption("등록된 사진이 없습니다.")
+
+                st.markdown('<div class="section-title">■ 2. 배합비 (BOM)</div>', unsafe_allow_html=True)
+                st.table(df_recipe)
+
+                st.markdown('<div class="section-title">■ 3. 완제품 규격 (위해요소)</div>', unsafe_allow_html=True)
+                st.table(df_hazard)
+
+            # ---------------------------------------------------------
+            # 뷰 2-B: [편집 모드] 수정 폼
+            # ---------------------------------------------------------
+            else:
+                col_back, col_title = st.columns([1, 6])
+                with col_back:
+                    if st.button("⬅️ 편집 취소"):
+                        st.session_state.is_edit_mode = False
+                        st.rerun()
+                with col_title:
+                    st.subheader(f"✏️ [{sel_code}] {sel_name} 정보 수정")
+                
+                # --- 🌟 신규 기능: 기존 제품 양식 불러오기 (복사/붙여넣기) ---
+                with st.expander("🔄 다른 제품의 규격 양식 불러오기 (덮어쓰기)"):
+                    st.caption("기존에 작성된 다른 제품의 규격(기본정보, 배합비, 위해요소)을 그대로 가져와 현재 제품에 덮어씁니다.")
+                    c_copy1, c_copy2 = st.columns([3, 1])
+                    with c_copy1:
+                        # 현재 제품을 제외한 나머지 제품 목록 생성
+                        other_products = df_specs[df_specs['제품코드'] != sel_code]['제품명'].tolist()
+                        copy_target = st.selectbox("불러올 제품 선택", ["선택하세요"] + other_products)
+                    with c_copy2:
+                        st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+                        if st.button("양식 덮어쓰기", use_container_width=True):
+                            if copy_target != "선택하세요":
+                                target_code = df_specs[df_specs['제품명'] == copy_target].iloc[0]['제품코드']
+                                safe_target_code = str(target_code).replace("/", "_").replace("\\", "_")
+                                
+                                T_B_FILE = f"spec_basic_{safe_target_code}.csv"
+                                T_R_FILE = f"spec_recipe_{safe_target_code}.csv"
+                                T_H_FILE = f"spec_hazard_{safe_target_code}.csv"
+                                
+                                # 1. 기본정보 덮어쓰기 (제품명은 현재 이름 유지)
+                                if os.path.exists(T_B_FILE):
+                                    temp_b = pd.read_csv(T_B_FILE, dtype=str)
+                                    if len(temp_b) > 0 and temp_b.iloc[0, 0] == "제품명":
+                                        temp_b.iloc[0, 1] = sel_name
+                                    temp_b.to_csv(B_FILE, index=False, encoding='utf-8-sig')
+                                
+                                # 2. 배합비 덮어쓰기
+                                if os.path.exists(T_R_FILE):
+                                    pd.read_csv(T_R_FILE, dtype=str).to_csv(R_FILE, index=False, encoding='utf-8-sig')
+                                    
+                                # 3. 위해요소 덮어쓰기
+                                if os.path.exists(T_H_FILE):
+                                    pd.read_csv(T_H_FILE, dtype=str).to_csv(H_FILE, index=False, encoding='utf-8-sig')
+                                    
+                                st.success(f"✅ [{copy_target}]의 양식을 성공적으로 불러왔습니다!")
+                                st.rerun()
+                            else:
+                                st.warning("목록에서 불러올 제품을 먼저 선택해 주세요.")
+
+                st.info("💡 각 표의 빈 셀을 더블클릭하여 수정하세요. 배합비와 위해요소는 표 좌측 체크박스를 선택 후 상단 🗑️휴지통 아이콘을 누르면 삭제됩니다. 고정 항목 색상은 다운로드 시 옅은 하늘색으로 적용됩니다.")
+
+                c_left, c_right = st.columns([2.5, 1])
+                with c_left:
+                    st.markdown('<div class="section-title">■ 1. 기본 정보 (2열 형식)</div>', unsafe_allow_html=True)
+                    cfg_b = {"항목(고정)": st.column_config.Column(disabled=True)}
+                    edited_b = st.data_editor(df_basic, use_container_width=True, hide_index=True, column_config=cfg_b)
+                    
+                with c_right:
+                    st.markdown('<div class="section-title">■ 제품 사진</div>', unsafe_allow_html=True)
+                    upl_img = st.file_uploader("📥 마우스로 사진을 끌어다 놓거나 클릭 (PNG, JPG)", type=['png', 'jpg', 'jpeg'])
+                    if upl_img:
+                        with open(IMG_FILE, "wb") as f: f.write(upl_img.getbuffer())
+                        st.rerun()
+                    if os.path.exists(IMG_FILE):
+                        st.image(IMG_FILE, use_container_width=True)
+                        if st.button("🗑️ 사진 삭제", use_container_width=True):
+                            os.remove(IMG_FILE)
+                            st.rerun()
+
+                st.markdown('<div class="section-title">■ 2. 배합비 (다단계 구조)</div>', unsafe_allow_html=True)
+                edited_r = st.data_editor(df_recipe, num_rows="dynamic", use_container_width=True, hide_index=False)
+
+                st.markdown('<div class="section-title">■ 3. 완제품 규격 (위해요소)</div>', unsafe_allow_html=True)
+                cfg_h = {"위해요소 구분": st.column_config.SelectboxColumn("구분", options=["물리학적 위해요소", "화학적 위해요소", "미생물학적 위해요소", "성상", "기타"])}
+                edited_h = st.data_editor(df_hazard, num_rows="dynamic", use_container_width=True, hide_index=False, column_config=cfg_h)
+
+                st.divider()
+                if st.button(f"💾 [{sel_name}] 작성 내용 저장 및 완료", use_container_width=True):
+                    edited_b.to_csv(B_FILE, index=False, encoding='utf-8-sig')
+                    edited_r.to_csv(R_FILE, index=False, encoding='utf-8-sig')
+                    edited_h.to_csv(H_FILE, index=False, encoding='utf-8-sig')
+                    
+                    st.success("✅ 상세 규격이 안전하게 저장되었습니다!")
+                    st.session_state.is_edit_mode = False 
+                    st.rerun()
 
 # --- 7. 현장 측정 기록 ---
 elif menu_selection == "현장 측정 기록":
